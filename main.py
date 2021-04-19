@@ -1,6 +1,9 @@
 import db
 import configparser
-import vk_api  # pip3 install vk_api
+import schedule
+import time
+from threading import *
+import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from vk_api.utils import get_random_id
@@ -81,6 +84,10 @@ adm = []
 adm_video = []
 
 
+# Переменные
+rating = ''
+
+
 # Клавиатуры
 keyboard_main = VkKeyboard(one_time=True)
 keyboard_main.add_button('Загрузить видео', color=VkKeyboardColor.POSITIVE)
@@ -103,134 +110,153 @@ keyboard_adm_video.add_line()
 keyboard_adm_video.add_button('Назад', color=VkKeyboardColor.SECONDARY)
 
 
+def sh_rating():
+    try:
+        global rating
+        db_rating = db.account_select_rating()
+        rating = texts['suc_rating']
+        num = 1
+        for account in db_rating:
+            if num <= int(TOP_COUNT):
+                rating += '{}: {} баллов\n'.format(give_name(account[1]), account[0])
+                num += 1
+    except:
+        rating = texts['fail_rating']
+
+
+schedule.every().minute.at(":00").do(sh_rating)
+
+
+def while_sh(arg):
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
+
+
+sh_rating()
+
+
+sh_rating = Thread(target=while_sh, args=(1, ))
+sh_rating.start()
+
+
 for event in lp.listen():
     if event.type == VkEventType.MESSAGE_NEW and event.to_me and event.from_user:
         account_id = event.user_id
         message = event.text
-        # try:
-        if db.account_exits(account_id):
-            if account_id in new_video:
-                if message == 'Назад':
-                    new_video.remove(account_id)
-                    send_message(account_id, texts['exit'], keyboard_main.get_keyboard())
-                else:
-                    message_id = event.message_id
-                    db.video_insert(account_id, event.message_id)
-                    send_message(account_id, texts['suc_new_video'], keyboard_video_exit.get_keyboard())
-
-            elif account_id in adm:
-
-                # Оценка видео
-                if account_id in adm_video:
-                    v = db.video_select_adm(account_id)
+        try:
+            if db.account_exits(account_id):
+                if account_id in new_video:
                     if message == 'Назад':
-                        db.video_update_adm_id(v['video_id'], None)
-                        adm_video.remove(account_id)
-                        send_message(account_id, texts['exit'], keyboard_adm.get_keyboard())
-                    elif message.isdigit() or message == 'Принять' or message == 'Отказать':
-                        if message.isdigit():
-                            score = int(message)
-                        elif message == 'Принять':
-                            score = 1
-                        elif message == 'Отказать':
-                            score = 0
-                        db.video_update_score(v['video_id'], score)
-                        send_message(account_id, texts['adm_score'], keyboard_adm.get_keyboard())
-                        adm_video.remove(account_id)
-                        if score > 0:
-                            send_message(account_id=v['account_id'],
-                                         message=texts['suc_video'].format(score, give_name(v['account_id']), score, DATE),
-                                         attachment=IMG_SUC,
-                                         forward_messages=v['message_id'])
-                        else:
-                            send_message(account_id=v['account_id'],
-                                         message=texts['fail_video'],
-                                         attachment=IMG_FAIL,
-                                         forward_messages=v['message_id'])
+                        new_video.remove(account_id)
+                        send_message(account_id, texts['exit'], keyboard_main.get_keyboard())
                     else:
-                        send_message(account_id, texts['fail_menu'], keyboard_adm_video.get_keyboard())
-                        
-                # Модерация
-                elif message == 'Модерация видео':
-                    v_f = db.video_select_first()
-                    # Вывод информации о видео
-                    if v_f:
-                        adm_video.append(account_id)
-                        db.video_update_adm_id(v_f['video_id'], account_id)
-                        send_message(account_id=account_id,
-                                     message=texts['suc_first_video'].format(v_f['video_id'], v_f['account_id']),
-                                     forward_messages=v_f['message_id'],
-                                     keyboard=keyboard_adm_video.get_keyboard())
+                        message_id = event.message_id
+                        db.video_insert(account_id, event.message_id)
+                        send_message(account_id, texts['suc_new_video'], keyboard_video_exit.get_keyboard())
 
-                    # Вывод информации об отсутствии видео
-                    else:
-                        send_message(account_id, texts['fail_first_video'], keyboard_adm.get_keyboard())
+                elif account_id in adm:
 
-
-                # Выдача сетификатов
-                elif message == '/sertif':
-
-                    r = db.account_select_rating()
-                    count = 1
-                    for i in r:
-                        if TOP_COUNT >= count:
-                            if count == 1:
-                                send_message(i[1], texts['coupon_1'])
+                    # Оценка видео
+                    if account_id in adm_video:
+                        v = db.video_select_adm(account_id)
+                        if message == 'Назад':
+                            db.video_update_adm_id(v['video_id'], None)
+                            adm_video.remove(account_id)
+                            send_message(account_id, texts['exit'], keyboard_adm.get_keyboard())
+                        elif message.isdigit() or message == 'Принять' or message == 'Отказать':
+                            if message.isdigit():
+                                score = int(message)
+                            elif message == 'Принять':
+                                score = 1
+                            elif message == 'Отказать':
+                                score = 0
+                            db.video_update_score(v['video_id'], score)
+                            send_message(account_id, texts['adm_score'], keyboard_adm.get_keyboard())
+                            adm_video.remove(account_id)
+                            if score > 0:
+                                send_message(account_id=v['account_id'],
+                                             message=texts['suc_video'].format(score, give_name(v['account_id']), score, DATE),
+                                             attachment=IMG_SUC,
+                                             forward_messages=v['message_id'])
                             else:
-                                send_message(i[1], texts['coupon'].format(count))
-                            count += 1
+                                send_message(account_id=v['account_id'],
+                                             message=texts['fail_video'],
+                                             attachment=IMG_FAIL,
+                                             forward_messages=v['message_id'])
+                        else:
+                            send_message(account_id, texts['fail_menu'], keyboard_adm_video.get_keyboard())
 
-                    send_message(account_id, texts['suc_coupon'], keyboard_adm.get_keyboard())
+                    # Модерация
+                    elif message == 'Модерация видео':
+                        v_f = db.video_select_first()
+                        # Вывод информации о видео
+                        if v_f:
+                            adm_video.append(account_id)
+                            db.video_update_adm_id(v_f['video_id'], account_id)
+                            send_message(account_id=account_id,
+                                         message=texts['suc_first_video'].format(v_f['video_id'], v_f['account_id']),
+                                         forward_messages=v_f['message_id'],
+                                         keyboard=keyboard_adm_video.get_keyboard())
 
-                # Вернуться назад
-                elif message == 'Назад':
-                    adm.remove(account_id)
-                    send_message(account_id, texts['exit'], keyboard_main.get_keyboard())
+                        # Вывод информации об отсутствии видео
+                        else:
+                            send_message(account_id, texts['fail_first_video'], keyboard_adm.get_keyboard())
 
-                # Команды не существует
-                else:
-                    # Команды нету
-                    send_message(account_id, texts['fail_menu'], keyboard_adm.get_keyboard())
 
-            elif message == 'Загрузить видео':
-                new_video.append(account_id)
-                send_message(account_id, texts['new_video'], keyboard_video_exit.get_keyboard())
+                    # Выдача сетификатов
+                    elif message == '/sertif':
 
-            elif message == 'Мои баллы':
-                score = db.video_select_sum(account_id)
-                send_message(account_id, texts['score'].format(score), keyboard_main.get_keyboard())
+                        r = db.account_select_rating()
+                        count = 1
+                        for i in r:
+                            if TOP_COUNT >= count:
+                                if count == 1:
+                                    send_message(i[1], texts['coupon_1'])
+                                else:
+                                    send_message(i[1], texts['coupon'].format(count))
+                                count += 1
 
-            elif message == 'Рейтинг':
-                try:
-                    r = db.account_select_rating()
-                    rating = texts['suc_rating']
-                    count = 1
-                    for account in r:
-                        if count <= int(TOP_COUNT):
-                            rating += '{}: {} баллов\n'.format(give_name(account[1]), account[0])
-                            count += 1
+                        send_message(account_id, texts['suc_coupon'], keyboard_adm.get_keyboard())
+
+                    # Вернуться назад
+                    elif message == 'Назад':
+                        adm.remove(account_id)
+                        send_message(account_id, texts['exit'], keyboard_main.get_keyboard())
+
+                    # Команды не существует
+                    else:
+                        # Команды нету
+                        send_message(account_id, texts['fail_menu'], keyboard_adm.get_keyboard())
+
+                elif message == 'Загрузить видео':
+                    new_video.append(account_id)
+                    send_message(account_id, texts['new_video'], keyboard_video_exit.get_keyboard())
+
+                elif message == 'Мои баллы':
+                    score = db.video_select_sum(account_id)
+                    send_message(account_id, texts['score'].format(score), keyboard_main.get_keyboard())
+
+                elif message == 'Рейтинг':
                     send_message(account_id, rating, keyboard_main.get_keyboard(), attachment=IMG_RATING)
-                    '1. {} - {} б.\n'
-                except:
-                    send_message(account_id, texts['fail_rating'], keyboard_main.get_keyboard())
 
-            elif message == '/adm':
-                if db.admin_exits(account_id):
-                    adm.append(account_id)
-                    send_message(account_id, texts['suc_adm'], keyboard_adm.get_keyboard())
+                elif message == '/adm':
+                    if db.admin_exits(account_id):
+                        adm.append(account_id)
+                        send_message(account_id, texts['suc_adm'], keyboard_adm.get_keyboard())
+                    else:
+                        send_message(account_id, texts['fail_adm'], keyboard_main.get_keyboard())
+
+                elif message == CODE:
+                    db.admin_insert(account_id)
+                    send_message(account_id, texts['suc_reg_adm'], keyboard_main.get_keyboard())
+
                 else:
-                    send_message(account_id, texts['fail_adm'], keyboard_main.get_keyboard())
-
-            elif message == CODE:
-                db.admin_insert(account_id)
-                send_message(account_id, texts['suc_reg_adm'], keyboard_main.get_keyboard())
-
+                    # Информация об отсутсвии команды
+                    send_message(account_id, texts['fail_menu'], keyboard_main.get_keyboard())
             else:
-                # Информация об отсутсвии команды
-                send_message(account_id, texts['fail_menu'], keyboard_main.get_keyboard())
-        else:
-            if message.lower == 'start':
-                if db.account_insert(account_id):
-                    send_message(account_id, texts['suc_reg'].format(give_start(account_id)), keyboard_main.get_keyboard(), attachment=IMG_REG)
-    # except:
-    # send_message(account_id, texts['error'], keyboard_main.get_keyboard())
+                if message.lower == 'start':
+                    if db.account_insert(account_id):
+                        send_message(account_id, texts['suc_reg'].format(give_start(account_id)), keyboard_main.get_keyboard(), attachment=IMG_REG)
+        except:
+            send_message(account_id, texts['error'], keyboard_main.get_keyboard())
