@@ -1,6 +1,6 @@
 import sqlite3
 
-conn = sqlite3.connect("db.db")
+conn = sqlite3.connect("db.db", check_same_thread=False)
 cursor = conn.cursor()
 
 cursor.execute("""CREATE TABLE IF NOT EXISTS accounts
