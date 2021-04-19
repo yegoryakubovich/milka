@@ -149,7 +149,7 @@ for event in lp.listen():
                                          forward_messages=v['message_id'])
                     else:
                         send_message(account_id, texts['fail_menu'], keyboard_adm_video.get_keyboard())
-
+                        
                 # Модерация
                 elif message == 'Модерация видео':
                     v_f = db.video_select_first()
@@ -229,7 +229,7 @@ for event in lp.listen():
                 # Информация об отсутсвии команды
                 send_message(account_id, texts['fail_menu'], keyboard_main.get_keyboard())
         else:
-            if message == '/reg':
+            if message.lower == 'start':
                 if db.account_insert(account_id):
                     send_message(account_id, texts['suc_reg'].format(give_start(account_id)), keyboard_main.get_keyboard(), attachment=IMG_REG)
     # except:
