@@ -229,7 +229,8 @@ for event in lp.listen():
                 # Информация об отсутсвии команды
                 send_message(account_id, texts['fail_menu'], keyboard_main.get_keyboard())
         else:
-            if db.account_insert(account_id):
-                send_message(account_id, texts['suc_reg'].format(give_start(account_id)), keyboard_main.get_keyboard())
+            if message == '/reg':
+                if db.account_insert(account_id):
+                    send_message(account_id, texts['suc_reg'].format(give_start(account_id)), keyboard_main.get_keyboard(), attachment=IMG_REG)
     # except:
     # send_message(account_id, texts['error'], keyboard_main.get_keyboard())
