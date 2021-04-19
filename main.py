@@ -89,21 +89,21 @@ rating = ''
 
 
 # Клавиатуры
-keyboard_main = VkKeyboard(one_time=True)
+keyboard_main = VkKeyboard(one_time=False)
 keyboard_main.add_button('Загрузить видео', color=VkKeyboardColor.POSITIVE)
 keyboard_main.add_line()
 keyboard_main.add_button('Рейтинг', color=VkKeyboardColor.SECONDARY)
 keyboard_main.add_button('Мои баллы', color=VkKeyboardColor.PRIMARY)
 
-keyboard_video_exit = VkKeyboard(one_time=True)
+keyboard_video_exit = VkKeyboard(one_time=False)
 keyboard_video_exit.add_button('Назад', color=VkKeyboardColor.NEGATIVE)
 
-keyboard_adm = VkKeyboard(one_time=True)
+keyboard_adm = VkKeyboard(one_time=False)
 keyboard_adm.add_button('Модерация видео', color=VkKeyboardColor.POSITIVE)
 keyboard_adm.add_line()
 keyboard_adm.add_button('Назад', color=VkKeyboardColor.NEGATIVE)
 
-keyboard_adm_video = VkKeyboard(one_time=True)
+keyboard_adm_video = VkKeyboard(one_time=False)
 keyboard_adm_video.add_button('Принять', color=VkKeyboardColor.POSITIVE)
 keyboard_adm_video.add_button('Отказать', color=VkKeyboardColor.NEGATIVE)
 keyboard_adm_video.add_line()
@@ -251,9 +251,9 @@ for event in lp.listen():
                     db.admin_insert(account_id)
                     send_message(account_id, texts['suc_reg_adm'], keyboard_main.get_keyboard())
 
-                else:
-                    # Информация об отсутсвии команды
-                    send_message(account_id, texts['fail_menu'], keyboard_main.get_keyboard())
+                #else:
+                    ## Информация об отсутсвии команды
+                    #send_message(account_id, texts['fail_menu'], keyboard_main.get_keyboard())
             elif message.lower() == 'start':
                 if db.account_insert(account_id):
                     send_message(account_id, texts['suc_reg'].format(give_start(account_id)), keyboard_main.get_keyboard(), attachment=IMG_REG)
